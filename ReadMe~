@@ -1,4 +1,0 @@
-Setup data in the data/ folder. See existing sample for format usage.
-* images are optional. labels are required.
-* Adjust config.json as needed
-* run ./run.sh to launch
