@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -8,6 +7,7 @@
 <script src="jquery-1.8.3.min.js"></script>
 <script src="d3.min.js"></script>
 <script src="tsne.js"></script>
+<script src="fpsmeter.min.js"></script>
 <link href='http://fonts.googleapis.com/css?family=Roboto:400,300' rel='stylesheet' type='text/css'>
 
 <style>
@@ -49,94 +49,109 @@ h1 {
 </style>
 
 <script>
-// Global vars..
-var T;
-var Y;
-var data;
-var config;
+(function() {
+  "use strict";
 
-function updateEmbedding() {
-  var Y = T.getSolution();
-  svg.selectAll('.obj')
-    .data(data.labels)
-    .attr("transform", function(d, i) { return "translate(" +
-                                          ((Y[i][0] * config.spreadFactor * ss + tx) + (config.embedWindowX / 2)) + "," +
-                                          ((Y[i][1] * config.spreadFactor * ss + ty) + (config.embedWindowY / 2)) + ")"; });
-}
+  var T, Y;
+  var svg;
+  var data;
+  var config;
+  var fpsMeter;
 
-var svg;
-function drawEmbedding() {
-    $("#embed").empty();
-    var div = d3.select("#embed");
-
-    // get min and max in each column of Y
-    var Y = T.Y;
-    
-    svg = div.append("svg") // svg is global
-    .attr("width", config.embedWindowX)
-    .attr("height", config.embedWindowY);
-
-    var g = svg.selectAll(".b")
+  function updateEmbedding() {
+    svg.selectAll('.obj')
       .data(data.labels)
-      .enter().append("g")
-      .attr("class", "obj");
-    
-    // Check if images are included with meta
-    if (data.images && config.showImages) {
-      g.append("svg:image")
-        .attr('x', 0)
-        .attr('y', 2)
-        .attr('width', config.imgWidth)
-        .attr('height', config.imgHeight)
-        .attr("xlink:href", function(d, i) { return "data/" + data.images[i]; })
-    }
-
-    if (data.labels && config.showLabels) {
-      g.append("text")
-        .attr("text-anchor", "top")
-        .attr("font-size", 12)
-        .attr("fill", "#333")
-        .text(function(d, i) { return data.labels[i]; });
-    }
-
-    var zoomListener = d3.behavior.zoom()
-      .scaleExtent([0.1, 100])
-      .center([0,0])
-      .on("zoom", zoomHandler);
-    zoomListener(svg);
-}
-
-var tx=0, ty=0;
-var ss=1;
-function zoomHandler() {
-  tx = d3.event.translate[0];
-  ty = d3.event.translate[1];
-  ss = d3.event.scale;
-}
-
-function step() {
-  for(var step=0; step<config.stepsBeforeUpdate; step++) {
-    T.step();
+      .attr("transform", function(d, i) { 
+        var XY = getXY(Y[i])
+        return "translate(" + XY.x + "," + XY.y + ")";
+      });
   }
-  updateEmbedding();
-}
 
-$(window).load(function() {
-  $.getJSON("config.json", function(configJson) {
-    config = configJson
-    T = new tsnejs.tSNE({
-      epsilon: config.epsilon, 
-      perplexity: config.perplexity
+  function getXY(Y) {
+    return {
+      x: (Y[0] * config.spreadFactor * ss + tx) + (config.embedWindowX / 2),
+      y: (Y[1] * config.spreadFactor * ss + ty) + (config.embedWindowY / 2)
+    }
+  }
+
+  function createObjects() {
+      $("#embed").empty();
+      var div = d3.select("#embed");
+    
+      svg = div.append("svg") // svg is global
+      .attr("width", config.embedWindowX)
+      .attr("height", config.embedWindowY);
+
+      var g = svg.selectAll(".b")
+        .data(data.labels)
+        .enter().append("g")
+        .attr("class", "obj");
+    
+      // Check if images are included with meta
+      if (data.images && config.showImages) {
+        g.append("svg:image")
+	  .attr('x', 0)
+          .attr('y', 2)
+	  .attr('width', config.imgWidth)
+	  .attr('height', config.imgHeight)
+	  .attr("xlink:href", function(d, i) { return "data/" + data.images[i]; })
+      }
+
+      if (data.labels && config.showLabels) {
+        g.append("text")
+	  .attr("text-anchor", "top")
+  	  .attr("font-size", 12)
+	  .attr("fill", "#333")
+	  .text(function(d, i) { return data.labels[i]; });
+      }
+
+      var zoomListener = d3.behavior.zoom()
+        .scaleExtent([0.1, 100])
+        .center([0,0])
+        .on("zoom", zoomHandler);
+      zoomListener(svg);
+  }
+
+  var tx=0, ty=0;
+  var ss=1;
+  function zoomHandler() {
+    tx = d3.event.translate[0];
+    ty = d3.event.translate[1];
+    ss = d3.event.scale;
+  }
+
+  function step() {
+    fpsMeter.tickStart();
+
+    for(var step=0; step<config.stepsBeforeUpdate; step++) {
+      T.step();
+    }
+    Y = T.getSolution();
+    updateEmbedding();
+    
+    fpsMeter.tick();
+  }
+
+  $(window).load(function() {
+    fpsMeter = new FPSMeter();
+
+    $.getJSON("config.json", function(configJson) {
+      config = configJson
+      T = new tsnejs.tSNE({
+        epsilon: config.epsilon, 
+        perplexity: config.perplexity
+      });
+
+      $.getJSON("data/data.json", function(dataJson) {
+        data = dataJson;
+        T.initDataDist(data.weights); // init embedding
+        createObjects(); // draw initial objects
+        setInterval(step, 10);
+      });    
     });
-
-    $.getJSON("data/data.json", function(dataJson) {
-      data = dataJson;
-      T.initDataDist(data.weights); // init embedding
-      drawEmbedding(); // draw initial embedding
-      setInterval(step, 0);
-    });    
   });
-});
+
+})();
 
 </script>
 
