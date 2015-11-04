@@ -1,8 +1,11 @@
 {
-  "stepsBeforeUpdate": 2,
+  "stepsBeforeUpdate": 3,
   "epsilon": 10,
   "perplexity": 30,
-  "embedWindowX": 800,
-  "embedWindowY": 600,
-  "data": "data/data.json"
+  "embedWindowX": 1024,
+  "embedWindowY": 768,
+  "data": "data/data.json",
+  "showLabels": true,
+  "showImages": true,
+  "spreadFactor": 1000
 }

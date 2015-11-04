@@ -60,8 +60,8 @@ function updateEmbedding() {
   svg.selectAll('.obj')
     .data(data.labels)
     .attr("transform", function(d, i) { return "translate(" +
-                                          ((Y[i][0]*20*ss + tx) + (config.embedWindowX / 2)) + "," +
-                                          ((Y[i][1]*20*ss + ty) + (config.embedWindowY / 2)) + ")"; });
+                                          ((Y[i][0] * config.spreadFactor * ss + tx) + (config.embedWindowX / 2)) + "," +
+                                          ((Y[i][1] * config.spreadFactor * ss + ty) + (config.embedWindowY / 2)) + ")"; });
 }
 
 var svg;
@@ -82,7 +82,7 @@ function drawEmbedding() {
       .attr("class", "obj");
     
     // Check if images are included with meta
-    if (data.images) {
+    if (data.images && config.showImages) {
       g.append("svg:image")
         .attr('x', 0)
         .attr('y', 2)
@@ -91,14 +91,16 @@ function drawEmbedding() {
         .attr("xlink:href", function(d, i) { return "data/" + data.images[i]; })
     }
 
-    g.append("text")
-      .attr("text-anchor", "top")
-      .attr("font-size", 12)
-      .attr("fill", "#333")
-      .text(function(d, i) { return data.labels[i]; });
+    if (data.labels && config.showLabels) {
+      g.append("text")
+        .attr("text-anchor", "top")
+        .attr("font-size", 12)
+        .attr("fill", "#333")
+        .text(function(d, i) { return data.labels[i]; });
+    }
 
     var zoomListener = d3.behavior.zoom()
-      .scaleExtent([0.1, 10])
+      .scaleExtent([0.1, 100])
       .center([0,0])
       .on("zoom", zoomHandler);
     zoomListener(svg);
