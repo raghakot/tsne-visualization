@@ -1,0 +1,8 @@
+{
+  "stepsBeforeUpdate": 2,
+  "epsilon": 10,
+  "perplexity": 30,
+  "embedWindowX": 800,
+  "embedWindowY": 600,
+  "data": "data/data.json"
+}
