@@ -86,8 +86,8 @@ function drawEmbedding() {
       g.append("svg:image")
         .attr('x', 0)
         .attr('y', 2)
-        .attr('width', 24)
-        .attr('height', 24)
+        .attr('width', config.imgWidth)
+        .attr('height', config.imgHeight)
         .attr("xlink:href", function(d, i) { return "data/" + data.images[i]; })
     }
 

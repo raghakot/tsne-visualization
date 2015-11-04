@@ -4,6 +4,8 @@
   "perplexity": 30,
   "embedWindowX": 1024,
   "embedWindowY": 768,
+  "imgWidth": 50,
+  "imgHeight": 50,
   "data": "data/data.json",
   "showLabels": true,
   "showImages": true,
