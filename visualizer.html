@@ -92,9 +92,17 @@ h1 {
         g.append("svg:image")
 	  .attr('x', 0)
           .attr('y', 2)
-	  .attr('width', config.imgWidth)
-	  .attr('height', config.imgHeight)
+	  .attr('width', config.thumbImgSize)
+	  .attr('height', config.thumbImgSize)
 	  .attr("xlink:href", function(d, i) { return "data/" + data.images[i]; })
+          .on('mouseover', function() {	
+            $(this).attr('width', config.hoverImgSize);
+	    $(this).attr('height', config.hoverImgSize);
+          })
+          .on('mouseout', function() {
+	    $(this).attr('width', config.thumbImgSize);
+	    $(this).attr('height', config.thumbImgSize);
+          })
       }
 
       if (data.labels && config.showLabels) {

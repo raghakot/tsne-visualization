@@ -1,6 +1,17 @@
 This visualizer uses <a href="https://github.com/karpathy/tsnejs">tSNEJS</a> from kaparthy to compute lower dimensional embeddings. 
 
-Setup data in the data/ folder. See existing sample for format usage.
-* images are optional. labels are required.
-* Adjust config.json as needed
-* run ./run.sh to launch
+## Setup
+config.json defines all the parameters, including the data set to use. Parameters are:
+* "stepsBeforeUpdate": The number of t-sne optimization steps to run before rendering.
+* "epsilon": The learning rate for t-sne
+* "perplexity": The number of neightbours to consider. Smaller values tend to give more fine grained clusters.
+* "embedWindowX": The width of render area
+* "embedWindowY": The height of render area
+* "thumbImgSize": The image thumbnail size
+* "hoverImgSize": The (zoomed) hover size for the images
+* "data": The path to json that defines the data. The json should contain labels, (optional) images and weights. See data/data.json for an example.
+* "showLabels": (true/false) to (Enable/Disable) labels during rendering
+* "showImages": (true/false) to (Enable/Disable) images during rendering
+* "spreadFactor": Defines how spread out the data is. Depending on how small/large t he weight vectors are, the computed (x, y) values copuld end up being too clumped together. Think of this as an overall zoom factor to make your data look good. Try experimenting with values that are a factor of 10.
+
+Run ./run.sh to launch
