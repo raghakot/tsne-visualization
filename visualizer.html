@@ -152,6 +152,17 @@ h1 {
 
       $.getJSON("data/data.json", function(dataJson) {
         data = dataJson;
+
+        // Trim dataset to limit
+	if (config.limit !== -1) {
+          var len = Math.min(config.limit, data.labels.length)
+          data.labels.length = len
+          data.weights.length = len
+	  if (data.images) {
+            data.images.length = len
+          }
+        }
+
         T.initDataDist(data.weights); // init embedding
         createObjects(); // draw initial objects
         setInterval(step, 10);
