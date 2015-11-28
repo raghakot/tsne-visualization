@@ -5,9 +5,11 @@
   <title>t-SNE Visualizer</title>
 
 <script src="jquery-1.8.3.min.js"></script>
-<script src="d3.min.js"></script>
 <script src="tsne.js"></script>
 <script src="fpsmeter.min.js"></script>
+<script src="three.min.js"></script>
+<script src="TrackballControls.js"></script>
+<script src="palette.js"></script>
 <link href='http://fonts.googleapis.com/css?family=Roboto:400,300' rel='stylesheet' type='text/css'>
 
 <style>
@@ -25,7 +27,7 @@ svg {
   margin-left: auto;
   margin-right: auto;
 }
-#embed {
+#container {
   margin-top: 10px;
 }
 h1 {
@@ -52,89 +54,118 @@ h1 {
 (function() {
   "use strict";
 
-  var T, Y;
-  var svg;
+  var T, reducedPoints;
   var data;
   var config;
   var fpsMeter;
 
+	var camera, scene, renderer, controls;
+	var clock = new THREE.Clock();
+	var imageSprites = [];
+	var labelSprites = [];
+
   function updateEmbedding() {
-    svg.selectAll('.obj')
-      .data(data.labels)
-      .attr("transform", function(d, i) { 
-        var XY = getXY(Y[i])
-        return "translate(" + XY.x + "," + XY.y + ")";
-      });
+		for (var i = 0; i < labelSprites.length; i++) {
+			var x = reducedPoints[i][0] * config.spreadFactor;
+			var y = reducedPoints[i][1] * config.spreadFactor;
+			var z = config.enable3D ? reducedPoints[i][2] * config.spreadFactor : 0;
+
+			imageSprites[i].position.set(x, y, z);
+			labelSprites[i].position.set(x, y + config.thumbImgSize / 2, z);
+		}
   }
 
-  function getXY(Y) {
-    return {
-      x: (Y[0] * config.spreadFactor * ss + tx) + (config.embedWindowX / 2),
-      y: (Y[1] * config.spreadFactor * ss + ty) + (config.embedWindowY / 2)
-    }
+  function init() {
+		// Init scene, renderer
+    scene = new THREE.Scene();  
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(config.embedWindowX, config.embedWindowY);
+    renderer.setClearColor(0xDDDDDD, 1);
+    renderer.clear();
+     
+    // Attach renderer to DOM element
+    var container = document.getElementById('container');
+    container.appendChild(renderer.domElement);
+     
+    // Camera
+    // If points disappear in the distance, then increase FAR
+    var viewAngle = 45, 
+        aspect = config.embedWindowX / config.embedWindowY, 
+        near = 0.1, far = 100000;
+    camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
+    camera.position.set(0, 0, 500);
+    scene.add(camera); 
+     
+    // Controls
+    controls = new THREE.TrackballControls(camera, renderer.domElement);
+		controls.target.set(0, 0, 0);
+
+		// Create objects
+		createObjects();
   }
 
-  function createObjects() {
-      $("#embed").empty();
-      var div = d3.select("#embed");
-    
-      svg = div.append("svg") // svg is global
-      .attr("width", config.embedWindowX)
-      .attr("height", config.embedWindowY);
+	function createObjects() {
+		for (var i=0; i < data.labels.length; i++) {
+			var imageSprite = makeImageSprite("data/" + data.images[i]);
+			imageSprites.push(imageSprite);
 
-      var g = svg.selectAll(".b")
-        .data(data.labels)
-        .enter().append("g")
-        .attr("class", "obj");
-    
-      // Check if images are included with meta
-      if (data.images && config.showImages) {
-        g.append("svg:image")
-	  .attr('x', 0)
-          .attr('y', 2)
-	  .attr('width', config.thumbImgSize)
-	  .attr('height', config.thumbImgSize)
-	  .attr("xlink:href", function(d, i) { return "data/" + data.images[i]; })
-          .on('mouseover', function() {	
-            $(this).attr('width', config.hoverImgSize);
-	    $(this).attr('height', config.hoverImgSize);
-          })
-          .on('mouseout', function() {
-	    $(this).attr('width', config.thumbImgSize);
-	    $(this).attr('height', config.thumbImgSize);
-          })
-      }
+			var labelSprite = makeTextSprite(data.labels[i]);
+			labelSprites.push(labelSprite);
 
-      if (data.labels && config.showLabels) {
-        g.append("text")
-	  .attr("text-anchor", "top")
-  	  .attr("font-size", 12)
-	  .attr("fill", "#333")
-	  .text(function(d, i) { return data.labels[i]; });
-      }
+			scene.add(imageSprite);
+			scene.add(labelSprite);
+		}
+	}
 
-      var zoomListener = d3.behavior.zoom()
-        .scaleExtent([0.1, 100])
-        .center([0,0])
-        .on("zoom", zoomHandler);
-      zoomListener(svg);
-  }
+	function makeImageSprite(imagePath) {
+		var material = new THREE.SpriteMaterial({
+			map: THREE.ImageUtils.loadTexture(imagePath)
+		});
 
-  var tx=0, ty=0;
-  var ss=1;
-  function zoomHandler() {
-    tx = d3.event.translate[0];
-    ty = d3.event.translate[1];
-    ss = d3.event.scale;
-  }
+		var sprite = new THREE.Sprite(material);	
+		sprite.scale.set(config.thumbImgSize, config.thumbImgSize, 1.0);
+		return sprite;		
+	}
+
+	function makeTextSprite(label)
+	{
+		var canvas = document.createElement('canvas');
+		var context = canvas.getContext('2d');
+		context.font = "Bold 12 px Courier";
+		  
+		// get size data (height depends only on font size)
+		var textWidth = context.measureText(label).width;	
+
+		// text color
+		context.fillStyle = "rgba(0, 0, 0, 1.0)";
+		context.fillText(label, 0, 12);
+	
+		// canvas contents will be used for a texture
+		var texture = new THREE.Texture(canvas) 
+		texture.needsUpdate = true;
+
+		var spriteMaterial = new THREE.SpriteMaterial({
+			map: texture
+		});
+
+		var sprite = new THREE.Sprite(spriteMaterial);
+		sprite.position.set(0, config.thumbImageSize / 2, 0);		
+		return sprite;
+	}
+
+	function animate() {
+    requestAnimationFrame(animate);
+		var delta = clock.getDelta(); 
+		step();
+    controls.update(delta); 
+    renderer.render(scene, camera);
+	}
 
   function step() {
     fpsMeter.tickStart();
 
-    for(var step=0; step<config.stepsBeforeUpdate; step++) {
-      T.step();
-    }
-    Y = T.getSolution();
+    T.step();
+    reducedPoints = T.getSolution();
     updateEmbedding();
     
     fpsMeter.tick();
@@ -147,26 +178,28 @@ h1 {
       config = configJson
       T = new tsnejs.tSNE({
         epsilon: config.epsilon, 
-        perplexity: config.perplexity
+        perplexity: config.perplexity,
+				dim: config.enable3D ? 3 : 2
       });
 
       $.getJSON("data/data.json", function(dataJson) {
         data = dataJson;
 
-        // Trim dataset to limit
-	if (config.limit !== -1) {
-          var len = Math.min(config.limit, data.labels.length)
-          data.labels.length = len
-          data.weights.length = len
-	  if (data.images) {
-            data.images.length = len
-          }
-        }
+    	  // Trim dataset to limit
+				if (config.limit !== -1) {
+    		  var len = Math.min(config.limit, data.labels.length)
+    	    data.labels.length = len
+    	    data.weights.length = len
+				  if (data.images) {
+    		    data.images.length = len
+    	    }
+   	   	}
 
-        T.initDataDist(data.weights); // init embedding
-        createObjects(); // draw initial objects
-        setInterval(step, 10);
-      });    
+				// Create initial objects and animate
+    	  T.initDataDist(data.weights); 
+   	    init(); 
+				animate();
+      });
     });
   });
 
@@ -186,7 +219,7 @@ h1 {
   <br> (Note that can take a while to load all images...)
 </div>
 
-<div id="embed"></div>
+<div id="container"></div>
 <br>
 
 <div class="tt">Algorithm Details</div>

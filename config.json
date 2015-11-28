@@ -1,14 +1,13 @@
 {
-  "stepsBeforeUpdate": 1,
   "epsilon": 10,
   "perplexity": 10, 
   "embedWindowX": 1400,
   "embedWindowY": 800,
   "thumbImgSize": 25,
-  "hoverImgSize": 125,
   "data": "data/data.json",
   "limit": "800",
   "showLabels": false,
   "showImages": true,
-  "spreadFactor": 1000
+  "spreadFactor": 1000,
+	"enable3D": true
 }
