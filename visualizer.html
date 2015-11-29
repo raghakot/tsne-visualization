@@ -9,7 +9,6 @@
 <script src="fpsmeter.min.js"></script>
 <script src="three.min.js"></script>
 <script src="TrackballControls.js"></script>
-<script src="palette.js"></script>
 <link href='http://fonts.googleapis.com/css?family=Roboto:400,300' rel='stylesheet' type='text/css'>
 
 <style>
@@ -61,17 +60,14 @@ h1 {
 
 	var camera, scene, renderer, controls;
 	var clock = new THREE.Clock();
-	var imageSprites = [];
-	var labelSprites = [];
+	var sprites = [];
 
   function updateEmbedding() {
-		for (var i = 0; i < labelSprites.length; i++) {
+		for (var i = 0; i < sprites.length; i++) {
 			var x = reducedPoints[i][0] * config.spreadFactor;
 			var y = reducedPoints[i][1] * config.spreadFactor;
 			var z = config.enable3D ? reducedPoints[i][2] * config.spreadFactor : 0;
-
-			imageSprites[i].position.set(x, y, z);
-			labelSprites[i].position.set(x, y + config.thumbImgSize / 2, z);
+			sprites[i].position.set(x, y, z);
 		}
   }
 
@@ -93,7 +89,7 @@ h1 {
         aspect = config.embedWindowX / config.embedWindowY, 
         near = 0.1, far = 100000;
     camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
-    camera.position.set(0, 0, 500);
+    camera.position.set(0, 0, config.cameraZ || 300);
     scene.add(camera); 
      
     // Controls
@@ -105,54 +101,82 @@ h1 {
   }
 
 	function createObjects() {
+		var labelToColorMap = getColorPalette();
+
 		for (var i=0; i < data.labels.length; i++) {
-			var imageSprite = makeImageSprite("data/" + data.images[i]);
-			imageSprites.push(imageSprite);
-
-			var labelSprite = makeTextSprite(data.labels[i]);
-			labelSprites.push(labelSprite);
-
-			scene.add(imageSprite);
-			scene.add(labelSprite);
+			var sprite = makeSprite(data.labels[i], "data/" + data.images[i], labelToColorMap[data.labels[i]]);
+			sprites.push(sprite);
+			scene.add(sprite);
 		}
+	}	
+
+	// Creates a unique color per label
+	function getColorPalette() {
+		var labelMap = {};
+		for (var i = 0; i < data.labels.length; i++) {
+			labelMap[data.labels[i]] = 1 + (labelMap[data.labels[i]] || 0);
+		}
+
+    var hue = 0;
+    var saturation = 70;
+    var lightness = 45;
+    var size = Object.keys(labelMap).length;
+		var i = 0;
+		for (var label in labelMap) {
+		  if (!labelMap.hasOwnProperty(label)) {		   
+		      continue;
+		  }
+			
+      hue = ((i + 1) * 360) / size;
+			i++;
+			labelMap[label] = "hsl(" + hue + ", " + saturation + "%, " + lightness + "%";
+    }
+		return labelMap;		
 	}
 
-	function makeImageSprite(imagePath) {
-		var material = new THREE.SpriteMaterial({
-			map: THREE.ImageUtils.loadTexture(imagePath)
-		});
-
-		var sprite = new THREE.Sprite(material);	
-		sprite.scale.set(config.thumbImgSize, config.thumbImgSize, 1.0);
-		return sprite;		
-	}
-
-	function makeTextSprite(label)
-	{
+	// Makes a sprite by using a canvas as a texture.
+	function makeSprite(label, imagePath, color) {
 		var canvas = document.createElement('canvas');
-		var context = canvas.getContext('2d');
-		context.font = "Bold 12 px Courier";
-		  
-		// get size data (height depends only on font size)
-		var textWidth = context.measureText(label).width;	
+		var texture = new THREE.Texture(canvas)
 
-		// text color
-		context.fillStyle = "rgba(0, 0, 0, 1.0)";
-		context.fillText(label, 0, 12);
-	
-		// canvas contents will be used for a texture
-		var texture = new THREE.Texture(canvas) 
-		texture.needsUpdate = true;
+		var ctx = canvas.getContext('2d');
+		canvas.width = config.thumbImgSize;
+		canvas.height = config.thumbImgSize;
+
+		var image = new Image();
+		image.onload = function() {
+			// Scale image to fit
+			ctx.drawImage(image, 0, 0, image.width, image.height, 
+												   0, 20, config.thumbImgSize, config.thumbImgSize);
+
+			// Black text on BG color.
+			ctx.fillStyle = "#DDDDDD";
+			ctx.fillRect(0, 0, config.thumbImgSize, 20);
+			
+			// Draw label.
+			var rectBorderWidth = 0.1 * config.thumbImgSize;	// 10% of image size
+			ctx.fillStyle = "black";
+			ctx.fillText(label, rectBorderWidth, 15);
+
+			// Rect border indicating label cluster
+			ctx.strokeStyle = color;
+			ctx.lineWidth = rectBorderWidth;
+			ctx.strokeRect(0, 0, config.thumbImgSize, config.thumbImgSize);
+
+			// Flag for update
+			texture.needsUpdate = true;
+		};
+		image.src = imagePath;
 
 		var spriteMaterial = new THREE.SpriteMaterial({
 			map: texture
 		});
 
 		var sprite = new THREE.Sprite(spriteMaterial);
-		sprite.position.set(0, config.thumbImageSize / 2, 0);		
+		sprite.scale.set(config.thumbImgSize, config.thumbImgSize, 1.0)
 		return sprite;
 	}
-
+	
 	function animate() {
     requestAnimationFrame(animate);
 		var delta = clock.getDelta(); 
