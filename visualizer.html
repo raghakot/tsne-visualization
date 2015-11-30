@@ -10,65 +10,46 @@
 <script src="three.min.js"></script>
 <script src="TrackballControls.js"></script>
 <link href='http://fonts.googleapis.com/css?family=Roboto:400,300' rel='stylesheet' type='text/css'>
-
-<style>
-body {
-  font-family: 'Roboto', sans-serif;
-  color: #333;
-  font-weight: 300;
-  font-size: 16px;
-}
-svg {
-  border: 1px solid #333;
-}
-#wrap {
-  width: 80%;
-  margin-left: auto;
-  margin-right: auto;
-}
-#container {
-  margin-top: 10px;
-}
-h1 {
-  text-align: center;
-  font-weight: normal;
-}
-.tt {
-  margin-top: 10px;
-  background-color: #EEE;
-  border-bottom: 1px solid #333;
-  padding: 5px;
-}
-.txth {
-  color: #F55;
-}
-.cit {
-  font-family: courier;
-  padding-left: 20px;
-  font-size: 14px;
-}
-</style>
+<link href='main.css' rel='stylesheet' type='text/css'>
 
 <script>
 (function() {
   "use strict";
 
   var T, reducedPoints;
-  var data;
+  var data, labelToColorMap;
   var config;
   var fpsMeter;
 
 	var camera, scene, renderer, controls;
 	var clock = new THREE.Clock();
 	var sprites = [];
+  
+  var needsUpdate = false;
+  var enableLabels = true;
+  var enableImages = true;
+  var enableColoring = true;
 
   function updateEmbedding() {
+    // Update material based on UI options..
+    if (needsUpdate) {
+      updateMaterials();
+      needsUpdate = false;
+    }
+    
 		for (var i = 0; i < sprites.length; i++) {
 			var x = reducedPoints[i][0] * config.spreadFactor;
 			var y = reducedPoints[i][1] * config.spreadFactor;
 			var z = config.enable3D ? reducedPoints[i][2] * config.spreadFactor : 0;
 			sprites[i].position.set(x, y, z);
 		}
+  }
+  
+  function updateMaterials() {
+    for (var i = 0; i < sprites.length; i++) {
+      var newMaterial =  createMaterial(data.labels[i], "data/" + data.images[i], labelToColorMap[data.labels[i]]);
+      sprites[i].material = newMaterial;
+    }
   }
 
   function init() {
@@ -96,16 +77,40 @@ h1 {
     controls = new THREE.TrackballControls(camera, renderer.domElement);
 		controls.target.set(0, 0, 0);
 
-		// Create objects
-		createObjects();
+		// Handle UI events and create objects
+		labelToColorMap = getColorPalette();
+    initEvents();
+		createObjects();    
+  }
+  
+  function initEvents() {
+    $('#ckbLabels').click(function() {
+      needsUpdate = true;
+      enableLabels = !enableLabels;
+    });
+    
+    $('#ckbImages').click(function() {
+      needsUpdate = true;
+      enableImages = !enableImages;
+    });
+    
+    $('#ckbColoring').click(function() {
+      needsUpdate = true;
+      enableColoring = !enableColoring;
+    });
+  }
+  
+  function isChecked(checkbox) {
+    return $(checkbox).is(':checked');
   }
 
 	function createObjects() {
-		var labelToColorMap = getColorPalette();
-
 		for (var i=0; i < data.labels.length; i++) {
-			var sprite = makeSprite(data.labels[i], "data/" + data.images[i], labelToColorMap[data.labels[i]]);
-			sprites.push(sprite);
+			var spriteMaterial =  createMaterial(data.labels[i], "data/" + data.images[i], labelToColorMap[data.labels[i]]);
+      var sprite = new THREE.Sprite(spriteMaterial);
+		  sprite.scale.set(config.objectSize, config.objectSize, 1.0)
+		  
+      sprites.push(sprite);
 			scene.add(sprite);
 		}
 	}	
@@ -134,47 +139,51 @@ h1 {
 		return labelMap;		
 	}
 
-	// Makes a sprite by using a canvas as a texture.
-	function makeSprite(label, imagePath, color) {
+	// Makes a sprite by using a canvas as a texture.  
+	function createMaterial(label, imagePath, color) {
 		var canvas = document.createElement('canvas');
 		var texture = new THREE.Texture(canvas)
 
-		var ctx = canvas.getContext('2d');
-		canvas.width = config.thumbImgSize;
-		canvas.height = config.thumbImgSize;
+		var ctx = canvas.getContext('2d'); 
+		canvas.width = config.objectSize;
+    // Images require larger size than just showing a label..
+		canvas.height = enableImages ? config.objectSize : 20;
 
 		var image = new Image();
 		image.onload = function() {
-			// Scale image to fit
-			ctx.drawImage(image, 0, 0, image.width, image.height, 
-												   0, 20, config.thumbImgSize, config.thumbImgSize);
-
-			// Black text on BG color.
-			ctx.fillStyle = "#DDDDDD";
-			ctx.fillRect(0, 0, config.thumbImgSize, 20);
+      
+      // Fill with constant background.
+      ctx.fillStyle = "#DDDDDD";
+      ctx.fillRect(0, 0, config.objectSize, config.objectSize);
+          
+      if (enableImages) {        
+        var heightOffset = enableLabels ? 20: 0;
+        ctx.drawImage(image, 0, 0, image.width, image.height, 
+	   											   0, heightOffset, config.objectSize, config.objectSize);  
+      }
 			
-			// Draw label.
-			var rectBorderWidth = 0.1 * config.thumbImgSize;	// 10% of image size
-			ctx.fillStyle = "black";
-			ctx.fillText(label, rectBorderWidth, 15);
+      var rectBorderWidth = 0.1 * config.objectSize;	// 10% of image size            
+      if (enableLabels) {        
+        // Draw label.
+        ctx.fillStyle = "black";
+        ctx.fillText(label, rectBorderWidth, 15);  
+      }			
 
 			// Rect border indicating label cluster
-			ctx.strokeStyle = color;
-			ctx.lineWidth = rectBorderWidth;
-			ctx.strokeRect(0, 0, config.thumbImgSize, config.thumbImgSize);
+      if (enableColoring) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = rectBorderWidth;
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+      }
 
 			// Flag for update
 			texture.needsUpdate = true;
 		};
 		image.src = imagePath;
 
-		var spriteMaterial = new THREE.SpriteMaterial({
+		return new THREE.SpriteMaterial({
 			map: texture
 		});
-
-		var sprite = new THREE.Sprite(spriteMaterial);
-		sprite.scale.set(config.thumbImgSize, config.thumbImgSize, 1.0)
-		return sprite;
 	}
 	
 	function animate() {
@@ -241,6 +250,21 @@ h1 {
 
   <br><br> <span class="txth">Go ahead, pan (right mouse click), rotate (left mouse click) and zoom around with mouse!</span>
   <br> (Note that can take a while to load all images...)
+</div>
+
+<div class="controls">
+  <span>
+    <input type="checkbox" id="ckbLabels" name="ckbLabels" class="switch" checked />
+	  <label for="ckbLabels">Labels</label>
+  </span>    
+  <span>
+    <input type="checkbox" id="ckbImages" name="ckbImages" class="switch" checked />
+    <label for="ckbImages">Images</label>
+  </span>  
+  <span>
+    <input type="checkbox" id="ckbColoring" name="ckbcoloring" class="switch" checked />
+    <label for="ckbColoring">Cluster coloring</label>
+  </span>
 </div>
 
 <div id="container"></div>

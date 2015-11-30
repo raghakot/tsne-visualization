@@ -14,7 +14,7 @@ These options control the rendering
 - **enable3D**: Embeds data in 3D space when set to true, 2D otherwise.
 
 These options are usually tweaked together. Larger image sizes will require greater cameraZ. 
-- **thumbImgSize** The image thumbnail size.
+- **objectSize** The object size.
 - **cameraZ** The initial camera position on z-axis
 - **spreadFactor**: Defines how spread out the data is. Depending on how small/large t he weight vectors are, the computed (x, y) values copuld end up being too clumped together. Think of this as an overall zoom factor to make your data look good. Try experimenting with values that are a factor of 10.
 
@@ -30,4 +30,4 @@ $ ./run.sh
 
 ## Todo
 - Offload computation to web workers and only perform rendering on the main thread.
-- Add options to turn on/off labels, images and cluster color border in the UI.
+- Auto detect spread factor. Multiply by a factor of 10 for the lowest x, y, z to make it > 1.

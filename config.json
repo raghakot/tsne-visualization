@@ -3,7 +3,7 @@
   "perplexity": 10, 
   "embedWindowX": 1400,
   "embedWindowY": 800,
-  "thumbImgSize": 100,
+  "objectSize": 100,
 	"cameraZ": 2500,
   "spreadFactor": 5000,
   "data": "data/data.json",
