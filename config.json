@@ -1,12 +1,12 @@
 {
   "epsilon": 10,
-  "perplexity": 10, 
-  "embedWindowX": 1400,
-  "embedWindowY": 800,
+  "perplexity": 10,
+  "embedWindowX": 1024,
+  "embedWindowY": 600,
   "objectSize": 100,
-	"cameraZ": 2500,
-  "spreadFactor": 5000,
+  "cameraZ": 2500,
+  "spreadFactor": 100,
   "data": "data/data.json",
   "limit": "800",
-	"enable3D": true
+  "enable3D": true
 }

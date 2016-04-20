@@ -6,7 +6,7 @@ config.json defines all the parameters, including the data set to use. Parameter
 
 These options control the t-sne algorithm.
 - **epsilon** The learning rate for t-sne.
-- **perplexity** The number of neightbours to consider. Smaller values tend to give more fine grained clusters.
+- **perplexity** The number of neighbours to consider. Smaller values tend to give more fine grained clusters.
 
 These options control the rendering
 - **embedWindowX** The width of render area.
@@ -23,7 +23,7 @@ These options are used to provide data.
 - **limit** Sometimes the frame rate is pretty bad for large data sets. This setting lets you limit the number of rows that should be considered for the visualization.
 
 ## Running locally
-Setup config.json to point to the data. See provided data/data.json for examples. Launch a local python server using. For MacOS, rename 'gnome-open' to 'open' within run.sh
+Setup config.json to point to the data. See provided data/data.json for examples. Launch a local python server using.
 ```sh
 $ ./run.sh
 ```

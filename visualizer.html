@@ -1,289 +1,293 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>t-SNE Visualizer</title>
+    <meta charset="utf-8">
+    <title>t-SNE Visualizer</title>
 
-<script src="jquery-1.8.3.min.js"></script>
-<script src="tsne.js"></script>
-<script src="fpsmeter.min.js"></script>
-<script src="three.min.js"></script>
-<script src="TrackballControls.js"></script>
-<link href='http://fonts.googleapis.com/css?family=Roboto:400,300' rel='stylesheet' type='text/css'>
-<link href='main.css' rel='stylesheet' type='text/css'>
+    <script src="jquery-1.8.3.min.js"></script>
+    <script src="tsne.js"></script>
+    <script src="fpsmeter.min.js"></script>
+    <script src="three.min.js"></script>
+    <script src="TrackballControls.js"></script>
+    <link href='http://fonts.googleapis.com/css?family=Roboto:400,300' rel='stylesheet' type='text/css'>
+    <link href='main.css' rel='stylesheet' type='text/css'>
 
-<script>
-(function() {
-  "use strict";
+    <script>
+        (function () {
+            "use strict";
 
-  var T, reducedPoints;
-  var data, labelToColorMap;
-  var config;
-  var fpsMeter;
+            var T, reducedPoints;
+            var data, labelToColorMap;
+            var config;
+            var fpsMeter;
 
-	var camera, scene, renderer, controls;
-	var clock = new THREE.Clock();
-	var sprites = [];
-  
-  var needsUpdate = false;
-  var enableLabels = true;
-  var enableImages = true;
-  var enableColoring = true;
+            var camera, scene, renderer, controls;
+            var clock = new THREE.Clock();
+            var sprites = [];
 
-  function updateEmbedding() {
-    // Update material based on UI options..
-    if (needsUpdate) {
-      updateMaterials();
-      needsUpdate = false;
-    }
-    
-		for (var i = 0; i < sprites.length; i++) {
-			var x = reducedPoints[i][0] * config.spreadFactor;
-			var y = reducedPoints[i][1] * config.spreadFactor;
-			var z = config.enable3D ? reducedPoints[i][2] * config.spreadFactor : 0;
-			sprites[i].position.set(x, y, z);
-		}
-  }
-  
-  function updateMaterials() {
-    for (var i = 0; i < sprites.length; i++) {
-      var newMaterial =  createMaterial(data.labels[i], "data/" + data.images[i], labelToColorMap[data.labels[i]]);
-      sprites[i].material = newMaterial;
-    }
-  }
+            var needsUpdate = false;
+            var enableLabels = true;
+            var enableImages = true;
+            var enableColoring = true;
 
-  function init() {
-		// Init scene, renderer
-    scene = new THREE.Scene();  
-    renderer = new THREE.WebGLRenderer();
-    renderer.setSize(config.embedWindowX, config.embedWindowY);
-    renderer.setClearColor(0xDDDDDD, 1);
-    renderer.clear();
-     
-    // Attach renderer to DOM element
-    var container = document.getElementById('container');
-    container.appendChild(renderer.domElement);
-     
-    // Camera
-    // If points disappear in the distance, then increase FAR
-    var viewAngle = 45, 
-        aspect = config.embedWindowX / config.embedWindowY, 
-        near = 0.1, far = 100000;
-    camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
-    camera.position.set(0, 0, config.cameraZ || 300);
-    scene.add(camera); 
-     
-    // Controls
-    controls = new THREE.TrackballControls(camera, renderer.domElement);
-		controls.target.set(0, 0, 0);
+            function updateEmbedding() {
+                // Update material based on UI options..
+                if (needsUpdate) {
+                    updateMaterials();
+                    needsUpdate = false;
+                }
 
-		// Handle UI events and create objects
-		labelToColorMap = getColorPalette();
-    initEvents();
-		createObjects();    
-  }
-  
-  function initEvents() {
-    $('#ckbLabels').click(function() {
-      needsUpdate = true;
-      enableLabels = !enableLabels;
-    });
-    
-    $('#ckbImages').click(function() {
-      needsUpdate = true;
-      enableImages = !enableImages;
-    });
-    
-    $('#ckbColoring').click(function() {
-      needsUpdate = true;
-      enableColoring = !enableColoring;
-    });
-  }
-  
-  function isChecked(checkbox) {
-    return $(checkbox).is(':checked');
-  }
+                for (var i = 0; i < sprites.length; i++) {
+                    var x = reducedPoints[i][0] * config.spreadFactor;
+                    var y = reducedPoints[i][1] * config.spreadFactor;
+                    var z = config.enable3D ? reducedPoints[i][2] * config.spreadFactor : 0;
+                    sprites[i].position.set(x, y, z);
+                }
+            }
 
-	function createObjects() {
-		for (var i=0; i < data.labels.length; i++) {
-			var spriteMaterial =  createMaterial(data.labels[i], "data/" + data.images[i], labelToColorMap[data.labels[i]]);
-      var sprite = new THREE.Sprite(spriteMaterial);
-		  sprite.scale.set(config.objectSize, config.objectSize, 1.0)
-		  
-      sprites.push(sprite);
-			scene.add(sprite);
-		}
-	}	
+            function updateMaterials() {
+                for (var i = 0; i < sprites.length; i++) {
+                    var newMaterial = createMaterial(data.labels[i], "data/" + data.images[i], labelToColorMap[data.labels[i]]);
+                    sprites[i].material = newMaterial;
+                }
+            }
 
-	// Creates a unique color per label
-	function getColorPalette() {
-		var labelMap = {};
-		for (var i = 0; i < data.labels.length; i++) {
-			labelMap[data.labels[i]] = 1 + (labelMap[data.labels[i]] || 0);
-		}
+            function init() {
+                // Init scene, renderer
+                scene = new THREE.Scene();
+                renderer = new THREE.WebGLRenderer();
+                renderer.setSize(config.embedWindowX, config.embedWindowY);
+                renderer.setClearColor(0xDDDDDD, 1);
+                renderer.clear();
 
-    var hue = 0;
-    var saturation = 70;
-    var lightness = 45;
-    var size = Object.keys(labelMap).length;
-		var i = 0;
-		for (var label in labelMap) {
-		  if (!labelMap.hasOwnProperty(label)) {		   
-		      continue;
-		  }
-			
-      hue = ((i + 1) * 360) / size;
-			i++;
-			labelMap[label] = "hsl(" + hue + ", " + saturation + "%, " + lightness + "%";
-    }
-		return labelMap;		
-	}
+                // Attach renderer to DOM element
+                var container = document.getElementById('container');
+                container.appendChild(renderer.domElement);
 
-	// Makes a sprite by using a canvas as a texture.  
-	function createMaterial(label, imagePath, color) {
-		var canvas = document.createElement('canvas');
-		var texture = new THREE.Texture(canvas)
+                // Camera
+                // If points disappear in the distance, then increase FAR
+                var viewAngle = 45,
+                        aspect = config.embedWindowX / config.embedWindowY,
+                        near = 0.1, far = 100000;
+                camera = new THREE.PerspectiveCamera(viewAngle, aspect, near, far);
+                camera.position.set(0, 0, config.cameraZ || 300);
+                scene.add(camera);
 
-		var ctx = canvas.getContext('2d'); 
-		canvas.width = config.objectSize;
-    // Images require larger size than just showing a label..
-		canvas.height = enableImages ? config.objectSize : 20;
+                // Controls
+                controls = new THREE.TrackballControls(camera, renderer.domElement);
+                controls.target.set(0, 0, 0);
 
-		var image = new Image();
-		image.onload = function() {
-      
-      // Fill with constant background.
-      ctx.fillStyle = "#DDDDDD";
-      ctx.fillRect(0, 0, config.objectSize, config.objectSize);
-          
-      if (enableImages) {        
-        var heightOffset = enableLabels ? 20: 0;
-        ctx.drawImage(image, 0, 0, image.width, image.height, 
-	   											   0, heightOffset, config.objectSize, config.objectSize);  
-      }
-			
-      var rectBorderWidth = 0.1 * config.objectSize;	// 10% of image size            
-      if (enableLabels) {        
-        // Draw label.
-        ctx.fillStyle = "black";
-        ctx.fillText(label, rectBorderWidth, 15);  
-      }			
+                // Handle UI events and create objects
+                labelToColorMap = getColorPalette();
+                initEvents();
+                createObjects();
+            }
 
-			// Rect border indicating label cluster
-      if (enableColoring) {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = rectBorderWidth;
-        ctx.strokeRect(0, 0, canvas.width, canvas.height);
-      }
+            function initEvents() {
+                $('#ckbLabels').click(function () {
+                    needsUpdate = true;
+                    enableLabels = !enableLabels;
+                });
 
-			// Flag for update
-			texture.needsUpdate = true;
-		};
-		image.src = imagePath;
+                $('#ckbImages').click(function () {
+                    needsUpdate = true;
+                    enableImages = !enableImages;
+                });
 
-		return new THREE.SpriteMaterial({
-			map: texture
-		});
-	}
-	
-	function animate() {
-    requestAnimationFrame(animate);
-		var delta = clock.getDelta(); 
-		step();
-    controls.update(delta); 
-    renderer.render(scene, camera);
-	}
+                $('#ckbColoring').click(function () {
+                    needsUpdate = true;
+                    enableColoring = !enableColoring;
+                });
+            }
 
-  function step() {
-    fpsMeter.tickStart();
+            function createObjects() {
+                for (var i = 0; i < data.labels.length; i++) {
+                    var spriteMaterial = createMaterial(data.labels[i], "data/" + data.images[i], labelToColorMap[data.labels[i]]);
+                    var sprite = new THREE.Sprite(spriteMaterial);
+                    sprite.scale.set(config.objectSize, config.objectSize, 1.0);
 
-    T.step();
-    reducedPoints = T.getSolution();
-    updateEmbedding();
-    
-    fpsMeter.tick();
-  }
+                    sprites.push(sprite);
+                    scene.add(sprite);
+                }
+            }
 
-  $(window).load(function() {
-    fpsMeter = new FPSMeter();
+            // Creates a unique color per label
+            function getColorPalette() {
+                var labelMap = {};
+                for (var i = 0; i < data.labels.length; i++) {
+                    labelMap[data.labels[i]] = 1 + (labelMap[data.labels[i]] || 0);
+                }
 
-    $.getJSON("config.json", function(configJson) {
-      config = configJson
-      T = new tsnejs.tSNE({
-        epsilon: config.epsilon, 
-        perplexity: config.perplexity,
-				dim: config.enable3D ? 3 : 2
-      });
+                var hue = 0;
+                var saturation = 70;
+                var lightness = 45;
+                var size = Object.keys(labelMap).length;
+                var i = 0;
+                for (var label in labelMap) {
+                    if (!labelMap.hasOwnProperty(label)) {
+                        continue;
+                    }
 
-      $.getJSON("data/data.json", function(dataJson) {
-        data = dataJson;
+                    hue = ((i + 1) * 360) / size;
+                    i++;
+                    labelMap[label] = "hsl(" + hue + ", " + saturation + "%, " + lightness + "%";
+                }
+                return labelMap;
+            }
 
-    	  // Trim dataset to limit
-				if (config.limit !== -1) {
-    		  var len = Math.min(config.limit, data.labels.length)
-    	    data.labels.length = len
-    	    data.weights.length = len
-				  if (data.images) {
-    		    data.images.length = len
-    	    }
-   	   	}
+            // Makes a sprite by using a canvas as a texture.
+            function createMaterial(label, imagePath, color) {
+                var canvas = document.createElement('canvas');
+                var texture = new THREE.Texture(canvas);
 
-				// Create initial objects and animate
-    	  T.initDataDist(data.weights); 
-   	    init(); 
-				animate();
-      });
-    });
-  });
+                var ctx = canvas.getContext('2d');
+                canvas.width = config.objectSize;
+                // Images require larger size than just showing a label..
+                canvas.height = enableImages ? config.objectSize : 20;
 
-})();
+                var image = new Image();
+                image.onload = function () {
 
-</script>
+                    // Fill with constant background.
+                    ctx.fillStyle = "#DDDDDD";
+                    ctx.fillRect(0, 0, config.objectSize, config.objectSize);
+
+                    if (enableImages) {
+                        var heightOffset = enableLabels ? 20 : 0;
+                        ctx.drawImage(image, 0, 0, image.width, image.height,
+                                0, heightOffset, config.objectSize, config.objectSize);
+                    }
+
+                    var rectBorderWidth = 0.1 * config.objectSize;	// 10% of image size
+                    if (enableLabels) {
+                        // Draw label.
+                        ctx.fillStyle = "black";
+                        ctx.fillText(label, rectBorderWidth, 15);
+                    }
+
+                    // Rect border indicating label cluster
+                    if (enableColoring) {
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = rectBorderWidth;
+                        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+                    }
+
+                    // Flag for update
+                    texture.needsUpdate = true;
+                };
+                image.src = imagePath;
+
+                return new THREE.SpriteMaterial({
+                    map: texture
+                });
+            }
+
+            function animate() {
+                requestAnimationFrame(animate);
+                var delta = clock.getDelta();
+                step();
+                controls.update(delta);
+                renderer.render(scene, camera);
+            }
+
+            function step() {
+                fpsMeter.tickStart();
+
+                T.step();
+                reducedPoints = T.getSolution();
+                updateEmbedding();
+
+                fpsMeter.tick();
+            }
+
+            $(window).load(function () {
+                fpsMeter = new FPSMeter();
+
+                $.getJSON("config.json", function (configJson) {
+                    config = configJson;
+                    T = new tsnejs.tSNE({
+                        epsilon: config.epsilon,
+                        perplexity: config.perplexity,
+                        dim: config.enable3D ? 3 : 2
+                    });
+
+                    $.getJSON("data/data.json", function (dataJson) {
+                        data = dataJson;
+
+                        // Trim dataset to limit
+                        if (config.limit !== -1) {
+                            var len = Math.min(config.limit, data.labels.length);
+                            data.labels.length = len;
+                            data.weights.length = len;
+                            if (data.images) {
+                                data.images.length = len;
+                            }
+                        }
+
+                        // Create initial objects and animate
+                        T.initDataRaw(data.weights);
+                        init();
+                        animate();
+                    });
+                });
+            });
+
+        })();
+
+    </script>
 
 </head>
 
 <body>
 <div id="wrap">
-<h1>t-SNE Visualization Utility</h1>
-<div class="sec">
-  t-SNE is a visualization algorithm that embeds things in 2 or 3 dimensions according to some desired distances. If you have some data and you can measure their pairwise differences, t-SNE visualization can help you identify various clusters. This visualizer uses <a href="https://github.com/karpathy/tsnejs">tSNEJS</a> from kaparthy to compute lower dimensional embeddings.
+    <h1>t-SNE Visualization Utility</h1>
+    <div class="sec">
+        t-SNE is a visualization algorithm that embeds things in 2 or 3 dimensions according to some desired distances.
+        If you have some data and you can measure their pairwise differences, t-SNE visualization can help you identify
+        various clusters. This visualizer uses <a href="https://github.com/karpathy/tsnejs">tSNEJS</a> from kaparthy to
+        compute lower dimensional embeddings.
 
-  <br><br> <span class="txth">Go ahead, pan (right mouse click), rotate (left mouse click) and zoom around with mouse!</span>
-  <br> (Note that can take a while to load all images...)
-</div>
+        <br><br> <span class="txth">Go ahead, pan (right mouse click), rotate (left mouse click) and zoom around with mouse!</span>
+        <br> (Note that can take a while to load all images...)
+    </div>
 
-<div class="controls">
+    <div class="controls">
   <span>
-    <input type="checkbox" id="ckbLabels" name="ckbLabels" class="switch" checked />
+    <input type="checkbox" id="ckbLabels" name="ckbLabels" class="switch" checked/>
 	  <label for="ckbLabels">Labels</label>
   </span>    
   <span>
-    <input type="checkbox" id="ckbImages" name="ckbImages" class="switch" checked />
+    <input type="checkbox" id="ckbImages" name="ckbImages" class="switch" checked/>
     <label for="ckbImages">Images</label>
   </span>  
   <span>
-    <input type="checkbox" id="ckbColoring" name="ckbcoloring" class="switch" checked />
+    <input type="checkbox" id="ckbColoring" name="ckbcoloring" class="switch" checked/>
     <label for="ckbColoring">Cluster coloring</label>
   </span>
-</div>
+    </div>
 
-<div id="container"></div>
-<br>
+    <div id="container"></div>
+    <br>
 
-<div class="tt">Algorithm Details</div>
-<div class="sec">
-  The algorithm is described in this paper:
+    <div class="tt">Algorithm Details</div>
+    <div class="sec">
+        The algorithm is described in this paper:
 
-  <div class="cit">
-  <br>L.J.P. van der Maaten and G.E. Hinton. 
-  <br>Visualizing High-Dimensional Data Using t-SNE. Journal of Machine Learning Research 9(Nov):2579-2605, 2008. 
-  <br><a href="http://jmlr.csail.mit.edu/papers/volume9/vandermaaten08a/vandermaaten08a.pdf">[PDF]</a> <a href="http://jmlr.csail.mit.edu/papers/volume9/vandermaaten08a/vandermaaten08a-supplement.pdf">[Supplemental Material (24MB)]</a>
-  </div>
+        <div class="cit">
+            <br>L.J.P. van der Maaten and G.E. Hinton.
+            <br>Visualizing High-Dimensional Data Using t-SNE. Journal of Machine Learning Research 9(Nov):2579-2605,
+            2008.
+            <br><a href="http://jmlr.csail.mit.edu/papers/volume9/vandermaaten08a/vandermaaten08a.pdf">[PDF]</a> <a
+                href="http://jmlr.csail.mit.edu/papers/volume9/vandermaaten08a/vandermaaten08a-supplement.pdf">[Supplemental
+            Material (24MB)]</a>
+        </div>
 
-  <br>
-  In short, the algorithm computes a matrix P that is related to distances between all elements in the original space. The variables of the problem are the embedding point locations, which similarily rise to their own distance matrix Q. The algorithm's cost function then minimizes the difference between P and Q. 
-</div>
-<br><br>
+        <br>
+        In short, the algorithm computes a matrix P that is related to distances between all elements in the original
+        space. The variables of the problem are the embedding point locations, which similarily rise to their own
+        distance matrix Q. The algorithm's cost function then minimizes the difference between P and Q.
+    </div>
+    <br><br>
 </body>
 
 </html>
